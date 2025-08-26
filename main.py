@@ -11,13 +11,30 @@ AUTH_KEY = os.getenv("AUTH_KEY", "default_key")
 # Store latest command per client
 latest_commands = {}  # {client_id: command}
 
+
 class CommandHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # Override default logging to use logging module
         logging.info("%s - %s" % (self.client_address[0], format % args))
 
+    def do_HEAD(self):
+        """Respond to health checks with status 200"""
+        if self.path == "/":
+            self.send_response(200)
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
     def do_GET(self):
         client_id = self.headers.get("Client-ID", "unknown")
+
+        if self.path == "/":
+            # Health check endpoint
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+            return
 
         if self.path == "/command":
             client_key = self.headers.get("Authorization", "")
@@ -77,11 +94,13 @@ class CommandHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+
 def run(server_class=HTTPServer, handler_class=CommandHandler, port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     logging.info(f"Server started on port {port}")
     httpd.serve_forever()
+
 
 if __name__ == '__main__':
     PORT = int(os.getenv("PORT", 8000))
